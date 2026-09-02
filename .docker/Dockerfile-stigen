@@ -3,7 +3,7 @@
 # Both images are pinned to multi-architecture manifest digests. Renovate can
 # update the human-readable tag and digest together in a reviewed change.
 ARG GO_IMAGE="docker.io/library/golang:1.26-trixie@sha256:9c967158a036fe9fe05864a3d96c0c3eac8d6dfb1a6e6b21367b4499ed8eb9ff"
-ARG RUNTIME_IMAGE="gcr.io/distroless/static-debian12:nonroot@sha256:afa5c872c891853ca7fcf1f12c3edb23f7eeef36189728842dd51042ff57f7ab"
+ARG RUNTIME_IMAGE="gcr.io/distroless/base-nossl-debian12:nonroot@sha256:be40c00dfabd86576d92666e87e406714d5618342de1a0c213ad232de255172e"
 
 FROM ${GO_IMAGE} AS builder
 
@@ -13,19 +13,22 @@ COPY oryx/go.mod oryx/go.sum ./oryx/
 COPY pkg/client-go/go.mod pkg/client-go/go.sum ./pkg/client-go/
 COPY go.mod go.sum ./
 
-ENV CGO_ENABLED=0
+ENV CGO_ENABLED=1
+ENV CGO_CPPFLAGS=-DSQLITE_DEFAULT_FILE_PERMISSIONS=0600
 
 RUN --mount=type=cache,target=/go/pkg/mod,sharing=locked \
     go mod download
 
 COPY . .
 
+RUN mkdir -p /var/lib/sqlite && chown 65532:65532 /var/lib/sqlite
+
 ARG VERSION
 ARG COMMIT
 ARG BUILD_DATE
 
 RUN --mount=type=cache,target=/root/.cache/go-build,sharing=locked \
-    go build -trimpath \
+    go build -tags sqlite -trimpath \
       -ldflags="-s -w -buildid= -X 'github.com/ory/kratos/driver/config.Version=${VERSION}' -X 'github.com/ory/kratos/driver/config.Date=${BUILD_DATE}' -X 'github.com/ory/kratos/driver/config.Commit=${COMMIT}'" \
       -o /out/kratos .
 
@@ -45,8 +48,11 @@ LABEL org.opencontainers.image.title="Stigen-maintained Ory Kratos" \
       org.opencontainers.image.created="${BUILD_DATE}"
 
 COPY --from=builder --chown=65532:65532 /out/kratos /usr/bin/kratos
+COPY --from=builder --chown=65532:65532 /var/lib/sqlite /var/lib/sqlite
 
 USER 65532:65532
+
+VOLUME /var/lib/sqlite
 
 EXPOSE 4433 4434
 

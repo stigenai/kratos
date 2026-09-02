@@ -68,6 +68,17 @@ jobs:
           [[ "$(docker image inspect kratos:release-candidate --format '{{.Config.User}}')" == "65532:65532" ]]
           [[ "$(docker image inspect kratos:release-candidate --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" == "$GITHUB_SHA" ]]
 
+      - name: Verify SQLite migrations complete
+        shell: bash
+        run: |
+          set -euo pipefail
+          migration_log="${RUNNER_TEMP}/kratos-sqlite-migration.log"
+          if ! timeout 60s docker run --rm kratos:release-candidate migrate sql -y 'sqlite://file::memory:?_fk=true&cache=shared' >"$migration_log" 2>&1; then
+            cat "$migration_log"
+            exit 1
+          fi
+          grep -F 'Successfully applied migrations!' "$migration_log"
+
       - name: Reject fixed high or critical vulnerabilities
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
@@ -103,7 +114,7 @@ jobs:
           git merge-base --is-ancestor "$GITHUB_SHA" "refs/remotes/origin/${RELEASE_BRANCH}"
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
+        uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3 # v4.1.0
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
