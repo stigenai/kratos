@@ -138,7 +138,9 @@ jobs:
       - name: Resolve reproducible build date
         id: source
         shell: bash
-        run: echo "created=$(git show -s --format=%cI "$GITHUB_SHA")" >> "$GITHUB_OUTPUT"
+        run:
+          echo "created=$(git show -s --format=%cI "$GITHUB_SHA")" >>
+          "$GITHUB_OUTPUT"
 
       - name: Build and push multi-architecture candidate
         id: build

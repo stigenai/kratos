@@ -117,6 +117,9 @@ func TestSessionWhoAmI(t *testing.T) {
 			require.NoError(t, err)
 			body := x.MustReadAll(res.Body)
 			assert.EqualValues(t, code, res.StatusCode)
+			if endpoint == RouteWhoami {
+				assert.NotEmpty(t, res.Header.Get("X-Kratos-Authenticated-Identity-Id"))
+			}
 			return string(body)
 		}
 

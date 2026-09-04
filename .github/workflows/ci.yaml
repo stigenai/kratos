@@ -318,7 +318,11 @@ jobs:
     needs:
       - test
     steps:
+      - name: Skip upstream docs publication outside ory/kratos
+        if: ${{ github.repository != 'ory/kratos' }}
+        run: echo "CLI docs are built and published only from ory/kratos."
       - uses: ory/ci/docs/cli-next@master
+        if: ${{ github.repository == 'ory/kratos' }}
         with:
           token: ${{ secrets.ORY_BOT_PAT }}
           arg: "."

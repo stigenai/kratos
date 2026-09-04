@@ -225,6 +225,11 @@ func (h *Handler) whoami(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The session is authenticated even when it does not yet satisfy the
+	// configured AAL. Expose the same identity header on that 403 response so
+	// trusted gateways can apply account-scoped protections to the AAL2 step-up.
+	w.Header().Set("X-Kratos-Authenticated-Identity-Id", s.IdentityID.String())
+
 	var aalErr *ErrAALNotSatisfied
 	if err := h.r.SessionManager().DoesSessionSatisfy(ctx, s, c.SessionWhoAmIAAL(ctx),
 		// For the time being we want to update the AAL in the database if it is unset.
@@ -249,9 +254,6 @@ func (h *Handler) whoami(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-
-	// Set userId as the X-Kratos-Authenticated-Identity-Id header.
-	w.Header().Set("X-Kratos-Authenticated-Identity-Id", s.Identity.ID.String())
 
 	// Set Cache header only when configured, and when no tokenization is requested.
 	if c.SessionWhoAmICaching(ctx) && len(tokenizeTemplate) == 0 {
